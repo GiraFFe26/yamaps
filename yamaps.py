@@ -79,11 +79,17 @@ def collect_data(url):
             driver.find_element(By.XPATH,
                                 '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[4]/button/span/div').click()
             continue
+        driver.find_element(By.CLASS_NAME, 'search-snippet-view__link-overlay').send_keys(Keys.END)
+        time.sleep(0.5)
         src = driver.find_element(By.CLASS_NAME, 'search-list-view__list').get_attribute('innerHTML')
         soup = BeautifulSoup(src, 'lxml')
         k = 0
         for item in soup.find_all('div', class_='search-business-snippet-view__content'):
-            address = item.find('div', class_='search-business-snippet-view__address').text
+            try:
+                address = item.find('div', class_='search-business-snippet-view__address').text
+            except AttributeError:
+                print(town)
+                continue
             if your_town == town:
                 pass
             elif town not in address:
@@ -103,7 +109,7 @@ def collect_data(url):
             rates.append(f'{rate} ★')
             feeds.append(feed)
             k += 1
-            if k == 3:
+            if k == 12:
                 break
         if k != 0:
             towns_excel.append(town)
