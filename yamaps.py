@@ -17,6 +17,7 @@ def collect_data(url):
     service = Service()
     service.start()
     driver = webdriver.Remote(service.service_url)
+    time.sleep(3.5)
     driver.get(url)
     with open('towns.txt', 'r', encoding='UTF-8') as file:
         towns = [i.strip() for i in file.readlines()]
@@ -116,7 +117,7 @@ def collect_data(url):
             for i in range(k-1):
                 towns_excel.append('')
         driver.find_element(By.XPATH,
-                            '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[5]/button/span/div').click()
+                            '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[4]/button/span/div').click()
     df = pd.DataFrame({'Город': towns_excel,
                        'Название': names,
                        'Адрес': places,
