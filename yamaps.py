@@ -9,20 +9,26 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
+from datetime import date
 
 
 def collect_data(url):
     delay = 3
-    feeds, names, places, rates, towns_excel = [], [], [], [], []
+    feeds, names, places, rates, towns_excel, dates = [], [], [], [], [], []
+    chromeOptions = webdriver.ChromeOptions()
+    chromeOptions.add_argument("--headless")
+    chromeOptions.add_argument("--remote-debugging-port=9241")
+    chromeOptions.binary_location = "/usr/bin/chromium-browser"
     service = Service()
     service.start()
-    driver = webdriver.Remote(service.service_url)
+    driver = webdriver.Remote(service.service_url, options=chromeOptions)
     time.sleep(3.5)
     driver.get(url)
-    with open('towns.txt', 'r', encoding='UTF-8') as file:
+    with open('/home/user/snap/maps/towns.txt', 'r', encoding='UTF-8') as file:
         towns = [i.strip() for i in file.readlines()]
     xpath1 = '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[2]/div/span/span/input'
     xpath2 = '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[1]/div/span/span/input'
+    xpath3 = '/html/body/div[1]/div[2]/div[1]/header/div/div/div/form/div[1]/div/span/span/input'
     try:
         WebDriverWait(driver, delay).until(ec.presence_of_element_located((By.CLASS_NAME, 'home-panel-content-view__header-text')))
     except TimeoutException:
@@ -37,11 +43,17 @@ def collect_data(url):
         try:
             driver.find_element(By.XPATH, xpath1).send_keys(text)
         except NoSuchElementException:
-            driver.find_element(By.XPATH, xpath2).send_keys(text)
+            try:
+                driver.find_element(By.XPATH, xpath2).send_keys(text)
+            except NoSuchElementException:
+                driver.find_element(By.XPATH, xpath3).send_keys(text)
         try:
             driver.find_element(By.XPATH, xpath1).send_keys(Keys.ENTER)
         except NoSuchElementException:
-            driver.find_element(By.XPATH, xpath2).send_keys(Keys.ENTER)
+            try:
+                driver.find_element(By.XPATH, xpath2).send_keys(Keys.ENTER)
+            except NoSuchElementException:
+                driver.find_element(By.XPATH, xpath3).send_keys(Keys.ENTER)
         try:
             WebDriverWait(driver, delay).until(ec.presence_of_element_located((By.CLASS_NAME, 'search-list-view__list')))
         except TimeoutException:
@@ -55,7 +67,8 @@ def collect_data(url):
                 pass
             elif town not in address:
                 driver.find_element(By.XPATH,
-                                    '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[4]/button/span/div').click()
+                                    '/html/body/div[1]/div[2]/div[1]/header/div/div/div/form/div[4]/button/span/div').click()
+                print(town)
                 continue
             name = soup.find('a', class_='card-title-view__title-link').text
             rating = soup.find('div', class_='business-card-title-view__header')
@@ -66,19 +79,22 @@ def collect_data(url):
             try:
                 feed = rating.find('span', class_='business-header-rating-view__text _clickable').text
             except AttributeError:
-                feed = '0 оценок'
+                feed = 0
             if feed == 'Написать отзыв':
-                feed = '0 оценок'
+                feed = 0
                 rate = 0
             if feed == '':
                 feed = rating.find('span', class_='business-header-rating-view__text').text
             towns_excel.append(town)
             names.append(name.strip())
             places.append(address.strip())
-            rates.append(f'{rate} ★')
+            rates.append(rate)
+            if feed != 0:
+                feed = int(feed.split()[0])
             feeds.append(feed)
+            dates.append(str(date.today()))
             driver.find_element(By.XPATH,
-                                '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[4]/button/span/div').click()
+                                '/html/body/div[1]/div[2]/div[1]/header/div/div/div/form/div[4]/button/span/div').click()
             continue
         driver.find_element(By.CLASS_NAME, 'search-snippet-view__link-overlay').send_keys(Keys.END)
         time.sleep(0.5)
@@ -96,7 +112,7 @@ def collect_data(url):
             elif town not in address:
                 break
             name = item.find('div', class_='search-business-snippet-view__head').text
-            rating = item.find('div', class_='search-business-snippet-view__rating')
+            rating = item.find('div', class_='search-business-snippet-view__rating-and-awards')
             try:
                 rate = rating.find('span', class_='business-rating-badge-view__rating-text _size_m').text
             except AttributeError:
@@ -104,11 +120,14 @@ def collect_data(url):
             try:
                 feed = rating.find('span', class_='business-rating-amount-view').text
             except AttributeError:
-                feed = '0 оценок'
+                feed = 0
             names.append(name.strip())
             places.append(address.strip())
-            rates.append(f'{rate} ★')
+            rates.append(rate)
+            if feed != 0:
+                feed = int(feed.split()[0])
             feeds.append(feed)
+            dates.append(str(date.today()))
             k += 1
             if k == 12:
                 break
@@ -117,13 +136,15 @@ def collect_data(url):
             for i in range(k-1):
                 towns_excel.append('')
         driver.find_element(By.XPATH,
-                            '/html/body/div[1]/div[2]/div[2]/header/div/div/div/form/div[4]/button/span/div').click()
+                            '/html/body/div[1]/div[2]/div[1]/header/div/div/div/form/div[4]/button/span/div').click()
+    driver.close()
     df = pd.DataFrame({'Город': towns_excel,
                        'Название': names,
                        'Адрес': places,
                        'Оценка': rates,
-                       'Кол-во отзывов': feeds})
-    df.to_excel('yamaps.xlsx', index=False)
+                       'Кол-во отзывов': feeds,
+                       'Дата': dates})
+    df.to_excel('/home/user/snap/maps/yamaps.xlsx', index=False)
 
 
 def main():
