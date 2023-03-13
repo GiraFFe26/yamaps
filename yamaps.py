@@ -16,9 +16,11 @@ def collect_data(url):
     delay = 3
     feeds, names, places, rates, towns_excel, dates = [], [], [], [], [], []
     chromeOptions = webdriver.ChromeOptions()
+    chromeOptions.add_argument('--no-sandbox')
     chromeOptions.add_argument("--headless")
+    chromeOptions.add_argument('--disable-dev-shm-usage')
     chromeOptions.add_argument("--remote-debugging-port=9241")
-    chromeOptions.binary_location = "/usr/bin/chromium-browser"
+    chromeOptions.binary_location = "/opt/google/chrome/chrome"
     service = Service()
     service.start()
     driver = webdriver.Remote(service.service_url, options=chromeOptions)
@@ -134,7 +136,7 @@ def collect_data(url):
         if k != 0:
             towns_excel.append(town)
             for i in range(k-1):
-                towns_excel.append('')
+                towns_excel.append(town)
         driver.find_element(By.XPATH,
                             '/html/body/div[1]/div[2]/div[1]/header/div/div/div/form/div[4]/button/span/div').click()
     driver.close()
